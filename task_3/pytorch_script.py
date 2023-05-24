@@ -70,20 +70,31 @@ def train_model(data, labels, model, learning_rate, epochs):
             optimizer.step()
 
 def plot_classification(data, labels, model):
+    
+
     x = np.linspace(-5, 5, 100)
     y = np.linspace(-5, 5, 100)
     X, Y = np.meshgrid(x, y)
     Z = np.zeros(X.shape)
     
-    for i in range(100):
-        for j in range(100):
-            data_point = torch.tensor([[X[i, j], Y[i, j]]])
-            output = model(data_point)
-            Z[i, j] = torch.argmax(output)
+    prediction_data = torch.tensor(np.dstack((X, Y)).reshape(-1, 2))
+    prediction_loader = DataLoader(TensorDataset(prediction_data), batch_size=64, shuffle=False)
+    
+    Z = np.zeros(X.shape)
+    with torch.no_grad():
+        for inputs in prediction_loader:
+            inputs = inputs[0].type(torch.FloatTensor)
+            outputs = model(inputs)
 
+
+            _, predicted = torch.max(outputs, 1)
+            predicted = predicted.numpy()
+            Z[np.unravel_index(range(len(predicted)), X.shape)] = predicted
+    
     plt.contourf(X, Y, Z, cmap=plt.cm.Spectral, alpha=0.8)
     plt.scatter(data[:, 0], data[:, 1], c=labels.argmax(dim=1), s=40, cmap=plt.cm.Spectral)
     plt.show()
+
 
 def main():
     # Load Data
@@ -109,6 +120,7 @@ def main():
     # save model
     torch.save(model.state_dict(), "model.pt")
     # Visualize Results
+    
     plot_classification(data, labels, model)
 
 if __name__ == "__main__":
@@ -118,7 +130,7 @@ if __name__ == "__main__":
     NUM_INPUT_NODES = 2
     NUM_HIDDEN_NODES = 25
     NUM_OUTPUT_NODES = 3
-    NUM_EPOCHS = 10000
+    NUM_EPOCHS = 10
     BATCH_SIZE = 64
-    EPOCHS_FOR_LEARNING_RATE_TEST = 100
+    EPOCHS_FOR_LEARNING_RATE_TEST = 10
     main()

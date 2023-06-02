@@ -1,167 +1,167 @@
-import os
-import time
-
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
-       
 class LinearLayer:
     def __init__(self, input_dim, output_dim):
         self.weights = np.random.randn(input_dim, output_dim)
         self.biases = np.random.randn(output_dim)
 
+
     def forward(self, inputs):
         self.inputs = inputs
-        self.outputs = np.dot(inputs, self.weights) + self.biases
+        self.outputs = np.matmul(inputs, self.weights) + self.biases
         return self.outputs
 
-    def backward(self, d_outputs):
-        self.d_weights = np.dot(self.inputs.T, d_outputs)
-        self.d_biases = np.sum(d_outputs, axis=0, keepdims=False)
-        self.d_inputs = np.dot(d_outputs, self.weights.T)
-        return self.d_inputs
+class SigmoidLayer:
+    def __init__(self):
+        pass
+    
+    def forward(self, inputs):
+        self.inputs = inputs
+        self.outputs = 1/(1 + np.exp(-inputs))
+        return self.outputs
 
-    def update(self, lr):
-        self.weights -= lr * self.d_weights
-        self.biases -= lr * self.d_biases
+        
+class TwoLayerNet:
+    def __init__(self, input_dim=2, hidden_dim=4, output_dim=1):
+        self.linear1 = LinearLayer(input_dim, hidden_dim)
+        self.sigmoid = SigmoidLayer()
+        self.linear2 = LinearLayer(hidden_dim, output_dim)
+
+    def forward(self, inputs):
+        z1 = self.linear1.forward(inputs)
+        g_z1 = self.sigmoid.forward(z1)
+        y_hat = self.linear2.forward(g_z1)
+        return y_hat
+    
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
 
 def target_fct(x1, x2):
     return ((x1**2 + x2**2)**(7/12)).reshape(-1, 1)
 
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-def sigmoid_derivative(x):
-    return sigmoid(x) * (1 - sigmoid(x))
-
 def lossfct(y_hat, y_true):
     return np.sum((y_hat - y_true)**2) / y_true.shape[0]
- 
 
-def plot_results(x, y_true, y_pred):
-    fig = plt.figure(figsize=(12, 6))
-
-    ax1 = fig.add_subplot(121, projection='3d')
-    ax1.scatter(x[:, 0], x[:, 1], y_true)
-    ax1.set_title("True Function")
-
-    ax2 = fig.add_subplot(122, projection='3d')
-    ax2.scatter(x[:, 0], x[:, 1], y_pred)
-    ax2.set_title("NN Aproximation")
-
+def plot_training_progress(training_progress):
+    plt.plot(training_progress)
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training Progress")
     plt.show()
 
-def train_network(x_train, y_train, layer1, layer2, init_learning_rate, epochs, batch_size, target_loss=None):
-    current_learning_rate = init_learning_rate
+def train(model, x_train, y_train, num_epochs, batch_size, init_lr=1,target_loss=None, scale_data=False, decay_lr=None, decay_interval=None, gradient_clip=None, verbose=False):
+    current_lr = init_lr
     best_loss = np.inf
-    best_weights = None
-    best_biases = None
-    losses = []
-    last_learning_rate_checkpoint = 0
 
-    num_samples = x_train.shape[0]
-    num_batches = num_samples // batch_size
+    training_progress = []
+    if scale_data:
+        y_min = np.min(y_train)
+        y_max = np.max(y_train)
+        y_train = (y_train - y_min) / (y_max - y_min)
 
-    start_time = time.time()
+        x_min = np.min(x_train)
+        x_max = np.max(x_train)
+        x_train = (x_train - x_min) / (x_max - x_min)
+    for current_epoch in range(num_epochs):
 
-    for epoch in range(epochs):
-        # Shuffle the training data
-        indices = np.random.permutation(num_samples)
-        x_train = x_train[indices]
-        y_train = y_train[indices]
+        # Shuffle the data
+        idx = np.random.permutation(x_train.shape[0])
+        x_train = x_train[idx]
+        y_train = y_train[idx]
 
-        # Iterate over batches
-        for batch in range(num_batches):
-            start = batch * batch_size
-            end = start + batch_size
-            x_batch = x_train[start:end]
-            y_batch = y_train[start:end]
+        # Batch training
+        for batch_start in range(0, x_train.shape[0], batch_size):
+            batch_end = batch_start + batch_size
+            x_batch = x_train[batch_start:batch_end]
+            y_batch = y_train[batch_start:batch_end]
 
-            # Forward pass
-            layer1_outputs = sigmoid(layer1.forward(x_batch))
-            layer2_outputs = layer2.forward(layer1_outputs)
+            # Forward Pass
+            y_hat = model.forward(x_batch)
+            batch_loss = lossfct(y_hat, y_batch)
+            training_progress.append(batch_loss)
 
-            y_pred = layer2_outputs
+            # Check if loss has improved
+            if batch_loss < best_loss:
+                best_loss = batch_loss
+                no_improvement_counter = 0
+            else:
+                no_improvement_counter += 1
 
-            # Compute the loss
-            loss = lossfct(y_pred, y_batch)
-            losses.append(loss)
+            # Decay learning rate if necessary
+            if decay_lr is not None and decay_interval is not None:
+                if no_improvement_counter >= decay_interval and (current_epoch + 1) % decay_interval == 0:
+                    current_lr *= decay_lr
+                    no_improvement_counter = 0
 
-            # If the loss is less than the best loss, update the best loss and save the weights and biases
-            if loss < best_loss:
-                best_loss = loss
-                best_weights = {"layer_1_weights": layer1.weights.copy(), "layer_2_weights": layer2.weights.copy()}
-                best_biases = {"layer_1_biases": layer1.biases.copy(), "layer_2_biases": layer2.biases.copy()}
+            # Backward Pass
+            d_loss = 2 * (y_hat - y_batch) / y_batch.shape[0]
+            grad_w2 = np.matmul(model.linear1.outputs.T, d_loss)
+            grad_b2 = np.sum(d_loss, axis=0)
+            d_sigmoid = sigmoid(model.linear1.outputs) * (1 - sigmoid(model.linear1.outputs))
+            grad_w1 = np.matmul(x_batch.T, np.matmul(d_loss, model.linear2.weights.T) * d_sigmoid)
+            grad_b1 = np.sum(np.matmul(d_loss, model.linear2.weights.T) * d_sigmoid, axis=0)
 
-            
+            # Gradient Clipping
+            if gradient_clip is not None:
+                grad_w2 = np.clip(grad_w2, -gradient_clip, gradient_clip)
+                grad_b2 = np.clip(grad_b2, -gradient_clip, gradient_clip)
+                grad_w1 = np.clip(grad_w1, -gradient_clip, gradient_clip)
+                grad_b1 = np.clip(grad_b1, -gradient_clip, gradient_clip)
 
-            # Backward pass
-            d_layer2_outputs = 2 * (y_pred - y_batch) / batch_size
-            d_layer1_outputs = layer2.backward(d_layer2_outputs)
-            layer1.backward(sigmoid_derivative(layer1_outputs) * d_layer1_outputs)
+            # Update Parameters
+            model.linear2.weights -= current_lr * grad_w2
+            model.linear2.biases -= current_lr * grad_b2
+            model.linear1.weights -= current_lr * grad_w1
+            model.linear1.biases -= current_lr * grad_b1
 
-            # Update the weights and biases
-            layer1.update(current_learning_rate)
-            layer2.update(current_learning_rate)
-
-            # If loss is less than the threshold, stop training
-            if target_loss:
-                if best_loss <= target_loss:
-                    print(f"Training stopped at epoch {epoch}, loss: {loss}")
-                    return best_weights, best_biases, losses
-
-            ##### Training Status Updates #####
-
-            if epoch % 1000 == 0 and batch == 0:
-                    print(f"Epoch {epoch}, Best loss: {best_loss}, Learning rate: {current_learning_rate}, Time[min]: {(time.time() - start_time) / 60}")
-                    
-
-            if (epoch % 3000 == 0) and (epoch != 0):
-                # If the loss has not decreased for 3000 epochs, decrease the learning rate
-                if np.min(losses[:epoch]) <= best_loss:
-                    print(f"Learning rate decreased from {current_learning_rate}to {current_learning_rate*0.1}")
-                    current_learning_rate *= 0.1
-
-
-
-    return best_weights, best_biases, losses
+        y_hat = model.forward(x_train)
+        loss = lossfct(y_hat, y_train)
+        if verbose:
+            if current_epoch % 10000 == 0:
+                if scale_data:
+                    y_hat_rescaled = y_hat * (y_max - y_min) + y_min
+                    y_train_rescaled = y_train * (y_max - y_min) + y_min
+                    loss = lossfct(y_hat_rescaled, y_train_rescaled)
+                print(f"Epoch: {current_epoch} Loss: {loss}")
 
 
-def main():
-    N1 = 45
-    init_learning_rate = 0.1
-    # Create a dataset
+
+        # if Loss <=0.02 end training here
+
+        if (target_loss) and (loss <= target_loss):
+            print(f"reached target loss")
+            return training_progress
+    return training_progress
+
+def plot_3d(x1, x2, y):
+    fig = plt.figure(figsize=(12, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x1, x2, y)
+    plt.show()
+
+if __name__ == "__main__":
+    verbose = True
+    num_epochs = 100000
+    batch_size = 32
+    decay_lr = 0.9
+    decay_interval = 1000
+    scale_data = True
+    init_lr = 0.1
+    target_loss = 0.02
+
+    N1 = 10
+
     x1 = np.arange(-5, 5, 0.1)
     x2 = np.arange(-5, 5, 0.1)
     x_train = np.array(np.meshgrid(x1, x2)).T.reshape(-1, 2)
     y_train = target_fct(x_train[:, 0], x_train[:, 1])
-
     
+    model = TwoLayerNet()
 
-    # Create the layers
-    layer1 = LinearLayer(2, N1)
-    layer2 = LinearLayer(N1, 1)
+    train_loss = train(model, x_train, y_train, num_epochs=num_epochs, batch_size=batch_size, init_lr=init_lr, scale_data=scale_data, verbose=verbose)
 
-    # Train the network
-    best_weights, best_biases, losses = train_network(x_train=x_train, 
-                                                      y_train=y_train, 
-                                                      layer1=layer1,
-                                                      layer2=layer2, 
-                                                      init_learning_rate=init_learning_rate, 
-                                                      epochs=100000,
-                                                      batch_size=300,
-                                                      target_loss=0.002)
-
-    # Use the best weights and biases to make predictions
-    layer1.weights, layer2.weights = best_weights["layer_1_weights"], best_weights["layer_2_weights"]
-    layer1.biases, layer2.biases = best_biases["layer_1_biases"], best_biases["layer_2_biases"]
-    layer1_outputs = sigmoid(layer1.forward(x_train))
-    layer2_outputs = layer2.forward(layer1_outputs)
-
-    # Plot the results
-    plot_results(x_train, y_train, layer2_outputs)
-
-# Run the main function
-if __name__ == "__main__":
-    main()
+    plot_training_progress(train_loss)
+    # save model state
+    weights_and_biases = {"w1": model.linear1.weights, "b1": model.linear1.biases, "w2": model.linear2.weights, "b2": model.linear2.biases}
+    np.save("weights_and_biases.npy", weights_and_biases)

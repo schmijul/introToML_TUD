@@ -82,16 +82,16 @@ def backpropagation(model, x, y, current_lr):
 
     return loss
 
-def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scale_data=False, decay_lr=None, decay_interval=None, gradient_clip=None, verbose=False):
+def train(model, x_train, y_train, num_epochs, batch_size, init_lr=1, target_loss=None, scale_data=False, decay_lr=None, decay_interval=None, gradient_clip=None, verbose=False):
     current_lr = init_lr
     best_loss = np.inf
 
     training_progress = []
     start_time = time.time()
 
-
     if (verbose):
-        progress_bar = tqdm(total=num_epochs, ncols=80, desc="Training:")
+        progress_bar = tqdm(total=num_epochs, ncols=80, desc="Training Progress")
+
     if (scale_data):
         y_min = np.min(y_train)
         y_max = np.max(y_train)
@@ -100,14 +100,19 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         x_min = np.min(x_train)
         x_max = np.max(x_train)
         x_train = (x_train - x_min) / (x_max - x_min)
+    
     for current_epoch in range(num_epochs):
 
         idx = np.random.permutation(x_train.shape[0])
         x_train = x_train[idx]
         y_train = y_train[idx]
 
-        loss = backpropagation(model, x_train, y_train, current_lr)
-        training_progress.append(loss)
+        for i in range(0, x_train.shape[0], batch_size):
+            x_batch = x_train[i:i+batch_size]
+            y_batch = y_train[i:i+batch_size]
+
+            loss = backpropagation(model, x_batch, y_batch, current_lr)
+            training_progress.append(loss)
 
         if (loss < best_loss):
             best_loss = loss
@@ -128,18 +133,18 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
             loss = lossfct(y_hat_rescaled, y_train_rescaled)
 
         if ((target_loss) and (loss <= target_loss)):
-            print(f"Reached target loss after {current_epoch} epochs and {elapsed_time} seconds")
             if (verbose):
                 progress_bar.close()
-                return training_progress
-        
+                print(f"Reached target loss after {current_epoch} epochs and {elapsed_time} seconds")
+            return training_progress
+
         if (verbose):
             progress_bar.update(1)
             if (current_epoch % 10000 == 0):  
                 print(f"Epoch: {current_epoch} Loss: {loss} Elapsed Time: {elapsed_time:.2f}s")
+
     if (verbose):
         progress_bar.close()
-    
 
     return training_progress
 
@@ -155,7 +160,7 @@ if (__name__ == "__main__"):
     # Script Parameters
     verbose = True
     num_epochs = int(1e6)
-    batchsize = 100
+    batch_size = 100
 
     # Hyper Parameters
     init_lr = 0.1
@@ -177,10 +182,10 @@ if (__name__ == "__main__"):
     
     model = TwoLayerNet()
 
-    train_loss = train(model, x_train, y_train, num_epochs=num_epochs, init_lr=init_lr, target_loss=target_loss, scale_data=scale_data, verbose=verbose)
+    train_loss = train(model, x_train, y_train, num_epochs=num_epochs, batch_size=batch_size, init_lr=init_lr, target_loss=target_loss, scale_data=scale_data, verbose=verbose)
 
     plot_training_progress(train_loss)
-
+    
     # save model state
     weights_and_biases = {"w1": model.linear1.weights, "b1": model.linear1.biases, "w2": model.linear2.weights, "b2": model.linear2.biases}
     np.save("weights_and_biases.npy", weights_and_biases)

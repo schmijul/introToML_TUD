@@ -52,7 +52,7 @@ def plot_training_progress(training_progress):
     plt.title("Training Progress")
     plt.show()
 
-def backpropagation(model, x, y, current_lr):
+def backpropagation(model, x, y, current_lr, gradient_clip=None):
     # Forward Pass
     y_hat = model.forward(x)
     loss = lossfct(y_hat, y)
@@ -108,14 +108,14 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         x_train = x_train[idx]
         y_train = y_train[idx]
 
-        loss = backpropagation(model, x_train, y_train, current_lr)
+        loss = backpropagation(model, x_train, y_train, current_lr,gradient_clip=gradient_clip)
         if (scale_data):
-            y_hat_rescaled = model.forward(x_train) * (y_max - y_min) + y_min
-            y_train_rescaled = y_train * (y_max - y_min) + y_min
-            loss = lossfct(y_hat_rescaled, y_train_rescaled)
+            loss = loss *(y_max - y_min) + y_min
 
         training_progress.append(loss)
 
+        elapsed_time = time.time() - start_time
+        
         if (loss < best_loss):
             best_loss = loss
             no_improvement_counter = 0
@@ -126,14 +126,12 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         else:
             no_improvement_counter += 1
 
-        elapsed_time = time.time() - start_time
+        
 
         if ((decay_lr is not None) and (decay_interval is not None)):
             if ((no_improvement_counter >= decay_interval) and ((current_epoch + 1) % decay_interval == 0)):
                 current_lr *= decay_lr
-                no_improvement_counter = 0
-
-        
+                no_improvement_counter = 0        
 
         if ((target_loss) and (loss <= target_loss)):
             print(f"Reached target loss after {current_epoch} epochs and {elapsed_time} seconds")
@@ -158,21 +156,39 @@ def plot_3d(x1, x2, y):
     ax.scatter(x1, x2, y)
     plt.show()
 
+
+def main():
+
+    x_train = np.array(np.meshgrid(x1, x2)).T.reshape(-1, 2)
+    y_train = target_fct(x_train[:, 0], x_train[:, 1])
+    
+    model = TwoLayerNet()
+
+    best_weights_and_biases, train_loss = train(model, x_train, y_train, num_epochs=num_epochs, init_lr=init_lr, target_loss=target_loss,gradient_clip=gradient_clip, scale_data=scale_data, verbose=verbose)
+
+    plot_training_progress(train_loss)
+
+    # save model state
+    weights_and_biases = best_weights_and_biases
+
+    np.save("weights_and_biases.npy", weights_and_biases)
+
 if (__name__ == "__main__"):
 
     # Script Parameters
     verbose = True
     num_epochs = int(1e6)
-    batchsize = 100
+
 
     # Hyper Parameters
     init_lr = 0.1
-    N1 = 12
+    N1 = 5
 
     # Optimization Parameters
-    decay_lr = 0.1
+    decay_lr = 0.9
     decay_interval = 1000
     scale_data = True
+    gradient_clip = False
 
     # Target
     target_loss = 0.02
@@ -181,16 +197,5 @@ if (__name__ == "__main__"):
     # Data
     x1 = np.arange(-5, 5, 0.1)
     x2 = np.arange(-5, 5, 0.1)
-    x_train = np.array(np.meshgrid(x1, x2)).T.reshape(-1, 2)
-    y_train = target_fct(x_train[:, 0], x_train[:, 1])
-    
-    model = TwoLayerNet()
-
-    best_weights_and_biases, train_loss = train(model, x_train, y_train, num_epochs=num_epochs, init_lr=init_lr, target_loss=target_loss, scale_data=scale_data, verbose=verbose)
-
-    plot_training_progress(train_loss)
-
-    # save model state
-    weights_and_biases = best_weights_and_biases
-
-    np.save("weights_and_biases.npy", weights_and_biases)
+ 
+    main()

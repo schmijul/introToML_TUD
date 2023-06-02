@@ -30,9 +30,9 @@ class TwoLayerNet:
         self.linear2 = LinearLayer(hidden_dim, output_dim)
 
     def forward(self, inputs):
-        z1 = self.linear1.forward(inputs)
-        g_z1 = self.sigmoid.forward(z1)
-        y_hat = self.linear2.forward(g_z1)
+        output_layer_1 = self.linear1.forward(inputs)
+        sigmoid_output_layer_1 = self.sigmoid.forward(output_layer_1)
+        y_hat = self.linear2.forward(sigmoid_output_layer_1)
         return y_hat
     
 def sigmoid(x):
@@ -46,7 +46,6 @@ def lossfct(y_hat, y_true):
 
 def plot_training_progress(training_progress):
     #plt.plot(training_progress)
-    # plot with log scale
     plt.semilogy(training_progress)
     plt.xlabel("Epoch [linear scale]")
     plt.ylabel("Loss [log scale]")
@@ -89,9 +88,11 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
     training_progress = []
     start_time = time.time()
 
+    best_weights_and_biases = None
 
     if (verbose):
         progress_bar = tqdm(total=num_epochs, ncols=80, desc="Training:")
+
     if (scale_data):
         y_min = np.min(y_train)
         y_max = np.max(y_train)
@@ -100,6 +101,7 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         x_min = np.min(x_train)
         x_max = np.max(x_train)
         x_train = (x_train - x_min) / (x_max - x_min)
+
     for current_epoch in range(num_epochs):
 
         idx = np.random.permutation(x_train.shape[0])
@@ -107,11 +109,20 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         y_train = y_train[idx]
 
         loss = backpropagation(model, x_train, y_train, current_lr)
+        if (scale_data):
+            y_hat_rescaled = model.forward(x_train) * (y_max - y_min) + y_min
+            y_train_rescaled = y_train * (y_max - y_min) + y_min
+            loss = lossfct(y_hat_rescaled, y_train_rescaled)
+
         training_progress.append(loss)
 
         if (loss < best_loss):
             best_loss = loss
             no_improvement_counter = 0
+            best_weights_and_biases = {"w1":model.linear1.weights.copy(), 
+                                       "b1":model.linear1.biases.copy(), 
+                                       "w2":model.linear2.weights.copy(), 
+                                       "b2":model.linear2.biases.copy()}
         else:
             no_improvement_counter += 1
 
@@ -122,10 +133,7 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
                 current_lr *= decay_lr
                 no_improvement_counter = 0
 
-        if (scale_data):
-            y_hat_rescaled = model.forward(x_train) * (y_max - y_min) + y_min
-            y_train_rescaled = y_train * (y_max - y_min) + y_min
-            loss = lossfct(y_hat_rescaled, y_train_rescaled)
+        
 
         if ((target_loss) and (loss <= target_loss)):
             print(f"Reached target loss after {current_epoch} epochs and {elapsed_time} seconds")
@@ -136,12 +144,12 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         if (verbose):
             progress_bar.update(1)
             if (current_epoch % 10000 == 0):  
-                print(f"Epoch: {current_epoch} Loss: {loss} Elapsed Time: {elapsed_time:.2f}s")
+                print(f"Epoch: {current_epoch} Loss: {loss} Best Loss :{best_loss} Elapsed Time: {elapsed_time:.2f}s")
     if (verbose):
         progress_bar.close()
     
 
-    return training_progress
+    return best_weights_and_biases,training_progress
 
 
 def plot_3d(x1, x2, y):
@@ -159,15 +167,16 @@ if (__name__ == "__main__"):
 
     # Hyper Parameters
     init_lr = 0.1
-    N1 = 10
+    N1 = 12
 
     # Optimization Parameters
     decay_lr = 0.1
     decay_interval = 1000
     scale_data = True
-    
+
     # Target
     target_loss = 0.02
+    
     
     # Data
     x1 = np.arange(-5, 5, 0.1)
@@ -177,10 +186,11 @@ if (__name__ == "__main__"):
     
     model = TwoLayerNet()
 
-    train_loss = train(model, x_train, y_train, num_epochs=num_epochs, init_lr=init_lr, target_loss=target_loss, scale_data=scale_data, verbose=verbose)
+    best_weights_and_biases, train_loss = train(model, x_train, y_train, num_epochs=num_epochs, init_lr=init_lr, target_loss=target_loss, scale_data=scale_data, verbose=verbose)
 
     plot_training_progress(train_loss)
 
     # save model state
-    weights_and_biases = {"w1": model.linear1.weights, "b1": model.linear1.biases, "w2": model.linear2.weights, "b2": model.linear2.biases}
+    weights_and_biases = best_weights_and_biases
+
     np.save("weights_and_biases.npy", weights_and_biases)

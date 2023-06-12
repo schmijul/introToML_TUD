@@ -4,7 +4,7 @@
 
 ## Setup
 
-Run `pip install -r requirmeents.txt`
+Run `pip install -r requirements.txt`
 
 ## Visualized Training
 

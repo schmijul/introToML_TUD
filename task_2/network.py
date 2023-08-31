@@ -3,12 +3,14 @@ from linearlayer import LinearLayer
 
 class Network:
     def __init__(self, input_size, hidden_size, output_size):
+        self.hidden_size = hidden_size
         self.hidden_layer = LinearLayer(input_size, hidden_size)
         self.output_layer = LinearLayer(hidden_size, output_size)
 
     def forward(self, x):
         hidden_output = np.tanh(self.hidden_layer.forward(x))
-        return self.output_layer.forward(hidden_output)
+        output_layer_output = self.output_layer.forward(hidden_output)
+        return output_layer_output
 
     def train(self, x_train, y_train, epochs, learning_rate):
         
@@ -26,12 +28,12 @@ class Network:
 
             # Backward pass
             delta2 = 2 * (yhat - y_train)
-            grad_w2 = np.dot(delta2, y1.T) / len(x_train)
+            grad_w2 = (delta2 * y1).sum(axis=1).reshape(self.hidden_size,1) / len(x_train)
             grad_b2 = delta2.sum() / len(x_train)
 
-            delta1 = np.dot(self.output_layer.weights.T, delta2) * (1 - y1 ** 2)
-            grad_w1 = np.dot(delta1, x_train.T) / len(x_train)
-            grad_b1 = delta1.sum() / len(x_train)
+            delta1 = delta2 * self.output_layer.weights *(1- y1**2)
+            grad_w1 =( delta1 *  x_train).sum(axis=1).reshape(self.hidden_size,1) / len(x_train)
+            grad_b1 = delta1.sum(axis=1).reshape(self.hidden_size,1) / len(x_train)
 
             # Update weights and biases
             self.output_layer.update_parameters(learning_rate, grad_w2, grad_b2)

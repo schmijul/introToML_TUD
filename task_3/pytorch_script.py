@@ -14,7 +14,7 @@ class TwoLayerPerceptron(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
+        x = torch.tanh(self.fc1(x))
         x = self.fc2(x)
         x = self.softmax(x)
         return x
@@ -121,7 +121,7 @@ def main():
     torch.save(model.state_dict(), "model.pt")
     # Visualize Results
     
-    plot_classification(data, labels, model)
+    #plot_classification(data, labels, model)
 
 if __name__ == "__main__":
     # data_file
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     NUM_INPUT_NODES = 2
     NUM_HIDDEN_NODES = 25
     NUM_OUTPUT_NODES = 3
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 100
     BATCH_SIZE = 64
-    EPOCHS_FOR_LEARNING_RATE_TEST = 10
+    EPOCHS_FOR_LEARNING_RATE_TEST = 10000
     main()

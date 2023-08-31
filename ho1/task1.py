@@ -104,11 +104,12 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         progress_bar = tqdm(total=num_epochs, ncols=80, desc="Training:")
 
     if scale_data:
-        data_min = np.min(np.concatenate((x_train, y_train)))
-        data_max = np.max(np.concatenate((x_train, y_train)))
-        x_train = (x_train - data_min) / (data_max - data_min)
-        y_train = (y_train - data_min) / (data_max - data_min)
-
+        x_min = np.min(x_train)
+        x_max = np.max(x_train)
+        y_min = np.min(y_train)
+        y_max = np.max(y_train)
+        x_train = (x_train - x_min) / (x_max - x_min)
+        y_train = (y_train - y_min) / (y_max - y_min)
     for current_epoch in range(num_epochs):
 
         idx = np.random.permutation(x_train.shape[0])
@@ -118,7 +119,7 @@ def train(model, x_train, y_train, num_epochs, init_lr=1, target_loss=None, scal
         loss = backpropagation(model, x_train, y_train, current_lr, gradient_clip=gradient_clip)
 
         if scale_data:
-            loss = loss * (data_max - data_min) + data_min
+            loss = loss * (y_max - y_min) + y_max
 
         training_progress.append(loss)
 
@@ -233,7 +234,7 @@ if __name__ == "__main__":
     num_epochs = int(1e6)
 
     # Hyper Parameters
-    init_lr = 0.1
+    init_lr = 0.01
 
     # Optimization Parameters
     decay_lr = 0.9
@@ -247,5 +248,5 @@ if __name__ == "__main__":
     # Data
     x1 = np.arange(-5, 5, 0.1)
     x2 = np.arange(-5, 5, 0.1)
-    for N1 in [5, 10, 15, 20]:
+    for N1 in [40, 10, 15, 20]:
         main()

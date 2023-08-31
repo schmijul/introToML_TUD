@@ -6,25 +6,29 @@ class LinearLayer:
     def __init__(self, input_size, output_size):
         self.weights = np.random.randn(input_size, output_size) * np.sqrt(2. / input_size)
         self.bias = np.zeros(output_size)
+        self.output = None
+        self.input = None
 
 def softmax(x):
     return np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
 
 def forward_pass(x, hidden_layer, output_layer):
     hidden_layer.input = x
-    hidden_layer.output = np.maximum(0, np.dot(x, hidden_layer.weights) + hidden_layer.bias)
+    hidden_layer.output =np.tanh(np.dot(x,hidden_layer.weights) + hidden_layer.bias)# np.maximum(0, np.dot(x, hidden_layer.weights) + hidden_layer.bias)
     
     output_layer.input = hidden_layer.output
     output_layer.output = softmax(np.dot(hidden_layer.output, output_layer.weights) + output_layer.bias)
 
 def backpropagation(hidden_layer, output_layer, output, target, learning_rate):
     output_error = output - target
+    
+
     hidden_error = output_error.dot(output_layer.weights.T)
     
     output_layer.weights -= learning_rate * hidden_layer.output.T.dot(output_error)
     output_layer.bias -= learning_rate * np.sum(output_error, axis=0)
-    
     hidden_layer.weights -= learning_rate * hidden_layer.input.T.dot(hidden_error)
+
     hidden_layer.bias -= learning_rate * np.sum(hidden_error, axis=0)
 
 def train(data, labels, hidden_layer, output_layer, learning_rate, epochs, batch_size):
@@ -45,6 +49,11 @@ def evaluate_model(data, labels, hidden_layer, output_layer):
     predictions = np.argmax(output_layer.output, axis=1)
     labels = np.argmax(labels, axis=1)
     return np.sum(predictions == labels) / len(labels)
+
+def predict(data, labels, hidden_layer,output_layer):
+    forward_pass(data, hidden_layer, output_layer)
+    predictions = np.argmax(output_layer.output, axis=1)
+    return predictions
 
 def find_best_learning_rate(data_train, labels_train, data_val, labels_val, hidden_nodes, output_nodes, learning_rates, epochs, batch_size):
     best_learning_rate = None
@@ -110,7 +119,6 @@ def main():
     # Define Layers
     hidden_layer = LinearLayer(input_shape, NUM_HIDDEN_NODES)
     output_layer = LinearLayer(NUM_HIDDEN_NODES, output_shape)
-    
     # Find best learning rate
     learning_rates_to_test = [10**(-x) for x in range(1, 6)]
 
@@ -123,11 +131,19 @@ def main():
     
     
     # Save Weights and Biases
-    trained_mlp_parameters = np.array([hidden_layer.weights, hidden_layer.bias, output_layer.weights, output_layer.bias])
+    trained_mlp_parameters ={"hidden-layer-weights":hidden_layer.weights,
+                            "hidden-layer-bias":hidden_layer.bias,
+                            "output-layer-weights": output_layer.weights,
+                            "output-layer-bias":output_layer.bias}
+
     np.save('mlp_numpy_parameters.npy', trained_mlp_parameters)
-    
+    # Save predictions 
+    predictions = predict(data, labels, hidden_layer, output_layer)
+    print(predictions)
+
+    np.save('mlp_numpy_pred.npy', predictions)
     # Visualize Results
-    plot_classification(data, labels, hidden_layer, output_layer)
+    #plot_classification(data, labels, hidden_layer, output_layer)
 
 if __name__ == "__main__":
     # data_file

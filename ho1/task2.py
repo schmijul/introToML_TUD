@@ -118,9 +118,9 @@ def main():
     y_T = y.T
 
     input_dim = x.shape[0]
-    hidden_dim = 13
+    hidden_dim = 30
     output_dim = N_cl
-    epochs = 100
+    epochs = int(1e3)
     print_loss_every = 10
     learning_rate = 1
     batch_size = 5*32
@@ -134,6 +134,7 @@ def main():
     model.linear1.biases = best_weights_biases['linear1_biases']
     model.linear2.weights = best_weights_biases['linear2_weights']
     model.linear2.biases = best_weights_biases['linear2_biases']
+    np.save(f"model_weights_biases.npy_task2.N1-{hidden_dim}.npy", best_weights_biases)
 
     # Test the trained model
     test_data_pd = pd.read_csv("labeled-dataset-3d-rings.txt", delimiter=',', dtype=np.float32)

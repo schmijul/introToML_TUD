@@ -8,6 +8,7 @@ class LinearLayer:
 
     def forward(self, x):
         return np.dot(self.weights, x) + self.biases
+    
     def update_parameters(self, learning_rate, grad_weights, grad_biases):
         self.weights -= learning_rate * grad_weights
         self.biases -= learning_rate * grad_biases

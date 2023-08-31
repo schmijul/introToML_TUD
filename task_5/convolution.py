@@ -34,6 +34,9 @@ def maxpooling(matrix, dim):
             output[i][j] = np.max(matrix[i*dim:(i+1)*dim, j*dim:(j+1)*dim])
 
     return output
+
+
+
 if __name__ == "__main__":
 
 
@@ -80,7 +83,7 @@ if __name__ == "__main__":
     
     img_conv_k1 = convolution_plain_python(img, K1)
 
-    Y1 = maxpooling(np.array(img_conv_k1), 2)
+    Y1 = maxpooling(np.array(img_conv_k1), 3)
     
 
     # show img, img_conv_k1, Y1 in one figure

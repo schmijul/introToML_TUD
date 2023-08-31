@@ -49,6 +49,7 @@ def plot_accuracy(model, test_loader):
 
     with torch.no_grad():
         for images, labels in test_loader:
+            images = images.view(images.size(0), -1).to(device)
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
@@ -98,7 +99,7 @@ if __name__ == "__main__":
 
     learning_rate = 0.01  # Learning rate for optimizer
     momentum = 0.9  
-    batch_size = 2*128
+    batch_size = 128
     num_epochs = 2
 
     train_data, test_data = get_data()
@@ -115,6 +116,9 @@ if __name__ == "__main__":
     train_mlp(mlp, optimizer, criterion, train_loader, num_epochs)
     test_mlp(mlp, test_loader)
 
+    plot_accuracy(mlp,test_loader)
+    
+    """
  
     convnet = CNN(output_size).to(device)
     optimizer = optim.SGD(convnet.parameters(), lr=learning_rate, momentum=momentum)
@@ -138,3 +142,5 @@ if __name__ == "__main__":
 
     train_gru(grunet, optimizer, criterion, train_loader, num_epochs)
     test_gru(grunet, test_loader)
+
+    """

@@ -35,19 +35,10 @@ class CNNAutoencoder(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        
-        # Encoder
         x = self.encoder(x)
         x = x.view(batch_size, -1)
         x = self.enc_fc(x)
-        
-        # Decoder
         x = self.dec_fc(x)
         x = x.view(batch_size, 2, 7, 7)
         x = self.decoder(x)
-        
         return x
-
-
-
-

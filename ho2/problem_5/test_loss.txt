@@ -1,0 +1,13 @@
+Test Loss: 0.0284
+Class-wise MSE:
+Class 0: 0.0004
+Class 1: 0.0004
+Class 2: 0.0004
+Class 3: 0.0004
+Class 4: 0.0004
+Class 5: 0.0004
+Class 6: 0.0004
+Class 7: 0.0004
+Class 8: 0.0004
+Class 9: 0.0004
+Total Average MSE: 0.0004

@@ -50,49 +50,62 @@ def load_fashion_mnist(batch_size, show_dataset=False):
         
     return trainloader, testloader
 
-def train_autoencoder(model, trainloader, epochs, criterion=nn.MSELoss()):
-    optimizer = optim.Adam(model.parameters())
+
+
+
+def initialize_weights(model):
+    
+    for m in model.modules():
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+
+def train_autoencoder(model, lr, trainloader, testloader, epochs,target_loss=0.03):
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.MSELoss()
     
     for epoch in range(epochs):
-        for images, _ in trainloader:  # We don't need labels
-            # Print shapes of images and outputs
-            
+        for images, _ in trainloader:
             optimizer.zero_grad()
-            
             outputs = model(images)
-            print(f"Input shape: {images.shape}, Output shape: {outputs.shape}")
             loss = criterion(outputs, images)
-            
             loss.backward()
             optimizer.step()
-            # Print shapes of images and outputs
-            print(f"Input shape: {images.shape}, Output shape: {outputs.shape}")
-            print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
-
             
+        # Calculate validation loss
+        validation_loss = 0.0
+        for images, _ in testloader:
+            outputs = model(images)
+            validation_loss += criterion(outputs, images).item()
+        
+        validation_loss /= len(testloader)
+        print(f"Epoch: {epoch+1}/{epochs}, Validation Loss: {validation_loss:.4f}")
+        
+        # Stop training if validation loss is below 0.03
+        if validation_loss < target_loss:
+            print("Stopping training. Validation loss below 0.03 achieved.")
+            break
 
+    return model
 
 if __name__ == "__main__":
-
-
-
     BATCH_SIZE = 64
-    NUM_EPOCHS = 2
-
-    NUM_INPUT_CHANNELS = 1
-    ENCODER_CHANNELS = [64, 32, 16, 2]
-    DECODER_CHANNELS = [16, 32, 64, 1]
+    NUM_EPOCHS = 50
+    LR = 0.03
     LATENT_DIM = 3
-    KERNEL_SIZE = 3
-    PADDING = 1
-    ENCODER_STRIDES = [2, 2, 1, 1]
-    DECODER_STRIDES = [1, 1, 2, 2]
 
-
-    trainloader, _ = load_fashion_mnist(batch_size=BATCH_SIZE)
+    trainloader, testloader = load_fashion_mnist(batch_size=BATCH_SIZE)
     
     # Initialize the model
     cnnautoencoder = CNNAutoencoder(LATENT_DIM)
+    #initialize_weights(cnnautoencoder)
     
     # Train the model
-    train_autoencoder(model=cnnautoencoder, trainloader= trainloader, epochs=NUM_EPOCHS)
+    train_autoencoder(model=cnnautoencoder,
+                        lr=LR,
+                        trainloader=trainloader, 
+                        testloader=testloader,
+                        epochs=NUM_EPOCHS)
+
+    # save model
+    torch.save(cnnautoencoder.state_dict(), 'models/cnnautoencoder.pth')
+    print("Model Saved Successfully")
